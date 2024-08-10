@@ -1,50 +1,57 @@
-const fs = require('fs').promises;
-const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 
 class ProductManager {
-  constructor(path) {
-    this.path = path;
-  }
-
-  async getAll() {
-    const data = await fs.readFile(this.path, 'utf-8');
-    return JSON.parse(data);
-  }
-
-  async getById(id) {
-    const products = await this.getAll();
-    return products.find(product => product.id === id);
-  }
-
-  async addProduct(product) {
-    const products = await this.getAll();
-    const newProduct = { id: uuidv4(), ...product };
-    products.push(newProduct);
-    await fs.writeFile(this.path, JSON.stringify(products, null, 2));
-    return newProduct;
-  }
-
-  async updateProduct(id, updates) {
-    const products = await this.getAll();
-    const index = products.findIndex(product => product.id === id);
-    if (index !== -1) {
-      products[index] = { ...products[index], ...updates };
-      await fs.writeFile(this.path, JSON.stringify(products, null, 2));
-      return products[index];
+    constructor(filePath) {
+        this.filePath = path.resolve(__dirname, filePath);
     }
-    return null;
-  }
 
-  async deleteProduct(id) {
-    const products = await this.getAll();
-    const index = products.findIndex(product => product.id === id);
-    if (index !== -1) {
-      const deletedProduct = products.splice(index, 1);
-      await fs.writeFile(this.path, JSON.stringify(products, null, 2));
-      return deletedProduct;
+    async getProducts() {
+        try {
+            const data = await fs.promises.readFile(this.filePath, 'utf-8');
+            return JSON.parse(data);
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                return []; 
+            } else {
+                throw error; 
+            }
+        }
     }
-    return null;
-  }
+
+    generateId() {
+        return Date.now().toString(); 
+    }
+
+    async addProduct(product) {
+        const products = await this.getProducts();
+        const id = this.generateId();
+        const newProduct = { id, ...product };
+        products.push(newProduct);
+        await fs.promises.writeFile(this.filePath, JSON.stringify(products, null, 2));
+        return newProduct;
+    }
+
+    async updateProduct(id, updates) {
+        const products = await this.getProducts();
+        const index = products.findIndex(product => product.id === id);
+        if (index !== -1) {
+            products[index] = { ...products[index], ...updates };
+            await fs.promises.writeFile(this.filePath, JSON.stringify(products, null, 2)); 
+            return products[index];
+        }
+        return null;
+    }
+
+    async deleteProduct(id) {
+        const products = await this.getProducts(); 
+        const index = products.findIndex(product => product.id === id);
+        if (index !== -1) {
+            const [deletedProduct] = products.splice(index, 1);
+            await fs.promises.writeFile(this.filePath, JSON.stringify(products, null, 2)); 
+        }
+        return null;
+    }
 }
 
 module.exports = ProductManager;
